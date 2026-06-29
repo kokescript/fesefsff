@@ -24,7 +24,7 @@ local Config = {
 }
 
 -- ========================================
--- COLOR SCHEME（KOKE HUBカラーに統一）
+-- カラースキーム（KOKE HUBカラーに統一）
 -- ========================================
 
 local Colors = {
@@ -46,6 +46,8 @@ local Colors = {
     NeonWhite     = Color3.fromRGB(255, 255, 255),
     NeonGlow      = Color3.fromRGB(0, 200, 255),
 }
+
+local DISCORD_LINK = "https://discord.gg/cx5RDVHKJG"
 
 -- ========================================
 -- STATE MANAGEMENT
@@ -260,7 +262,6 @@ local function CreateContent(parent)
     title.ZIndex = 12
     title.Parent = content
 
-    -- タイトルにKOKE HUBと同じグラデーションアニメーション
     local titleGradient = Instance.new("UIGradient")
     titleGradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0,   Color3.fromRGB(0, 150, 255)),
@@ -675,10 +676,8 @@ local function UpdateParticles()
                 if distanceToMouse < repelRadius and distanceToMouse > 0 then
                     local repelPower = (repelRadius - distanceToMouse) / repelRadius
                     repelPower = repelPower * repelStrength / p.mass
-
                     local directionX = (currentPos.X.Scale - mouseScreenX) / distanceToMouse
                     local directionY = (currentPos.Y.Scale - mouseScreenY) / distanceToMouse
-
                     repelForceX = directionX * repelPower
                     repelForceY = directionY * repelPower
                 end
@@ -695,7 +694,6 @@ local function UpdateParticles()
                 local wobbleTime = tick() * 1.5 + p.wobblePhase
                 newX = newX + math.sin(wobbleTime) * 0.002
                 newY = newY + math.cos(wobbleTime * 0.7) * 0.001
-
                 newX = newX + (math.random() - 0.5) * 0.0008
                 newY = newY + (math.random() - 0.5) * 0.0005
 
@@ -772,12 +770,10 @@ local function CreateButtonGlow(button, hoverColor, originalColor)
     button.MouseEnter:Connect(function()
         State.FocusStates.ButtonHovered[buttonId] = true
         glowBorder.Visible = true
-
         Services.TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad),
             {BackgroundColor3 = hoverColor}):Play()
         Services.TweenService:Create(stroke, TweenInfo.new(0.2, Enum.EasingStyle.Quad),
             {Transparency = 0.1}):Play()
-
         if currentTween then currentTween:Cancel() end
         currentTween = Services.TweenService:Create(gradient,
             TweenInfo.new(1.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
@@ -787,17 +783,14 @@ local function CreateButtonGlow(button, hoverColor, originalColor)
 
     button.MouseLeave:Connect(function()
         State.FocusStates.ButtonHovered[buttonId] = false
-
         Services.TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad),
             {BackgroundColor3 = originalColor}):Play()
         Services.TweenService:Create(stroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad),
             {Transparency = 0.8}):Play()
-
         if currentTween then
             currentTween:Cancel()
             gradient.Rotation = 0
         end
-
         task.spawn(function()
             task.wait(0.3)
             if glowBorder and glowBorder.Parent then
@@ -911,7 +904,7 @@ end
 -- ========================================
 
 local function ConnectEvents()
-    Services.UserInputService.InputChanged:Connect(function(input, gameProcessed)
+    Services.UserInputService.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement then
             State.MousePosition.X = input.Position.X
             State.MousePosition.Y = input.Position.Y
@@ -965,25 +958,31 @@ local function ConnectEvents()
         end)
     end)
 
-    task.spawn(function()
-        task.wait(0.5)
-        DestroyGUI()
-        ExecuteMainScript()
-    end)
-
+    -- 確認ボタン（キー入力チェック）
     UI.Buttons.Submit.MouseButton1Click:Connect(function()
-        DestroyGUI()
-        ExecuteMainScript()
+        if State.IsLoading then return end
+        local key = UI.Input.TextBox.Text
+        if key == "" then
+            ShowStatus("キーを入力してください", true)
+            return
+        end
+        ShowStatus("確認中...", false, false)
+        SetLoading(true)
+        task.wait(1.5)
+        SetLoading(false)
+        ShowStatus("キーが無効です。キーを取得してください", true)
     end)
 
+    -- キーを取得ボタン
     UI.Buttons.GetKey.MouseButton1Click:Connect(function()
-        ShowStatus("キーサイトを開いています...", false, false)
-        CopyToClipboard("https://discord.gg/Jw4szxjcbJ", "Discordの招待リンクをコピーしました！")
+        ShowStatus("Discordサーバーを開いています...", false, false)
+        CopyToClipboard(DISCORD_LINK, "Discordリンクをコピーしました！")
     end)
 
+    -- Discordボタン
     UI.Buttons.Discord.MouseButton1Click:Connect(function()
         ShowStatus("Discordを開いています...", false, false)
-        CopyToClipboard("https://discord.gg/Jw4szxjcbJ", "Discordの招待リンクをコピーしました！")
+        CopyToClipboard(DISCORD_LINK, "Discordリンクをコピーしました！")
     end)
 end
 
@@ -996,7 +995,6 @@ local function StartAnimationLoops()
     State.Animations.IconTween = nil
     State.FocusStates.AnimationsActive = true
 
-    -- パーティクル生成
     task.spawn(function()
         for i = 1, 25 do
             if State.IsDestroyed then break end
@@ -1011,7 +1009,6 @@ local function StartAnimationLoops()
         end
     end)
 
-    -- パーティクル更新
     task.spawn(function()
         while not State.IsDestroyed and UI.ScreenGui and UI.ScreenGui.Parent do
             pcall(UpdateParticles)
@@ -1019,7 +1016,6 @@ local function StartAnimationLoops()
         end
     end)
 
-    -- ボーダーアニメーション（KOKE HUBと同じ青系グラデーション回転）
     task.spawn(function()
         while not State.IsDestroyed and UI.AnimatedBorder and UI.AnimatedBorder.Frame and UI.AnimatedBorder.Frame.Parent do
             if State.Animations.BorderTween then
@@ -1040,7 +1036,6 @@ local function StartAnimationLoops()
         end
     end)
 
-    -- アイコングローアニメーション
     task.spawn(function()
         while not State.IsDestroyed and UI.Header and UI.Header.IconGlow and UI.Header.IconGlow.Parent do
             if State.Animations.IconTween then
@@ -1062,7 +1057,7 @@ local function StartAnimationLoops()
 end
 
 -- ========================================
--- ローディング画面（KOKE HUBと全く同じスタイル）
+-- ローディング画面（KOKE HUBと全く同じ）
 -- ========================================
 
 local function PlayLoadingScreen()
@@ -1091,7 +1086,6 @@ local function PlayLoadingScreen()
     LoadingTitle.ZIndex = 11
     LoadingTitle.Parent = Overlay
 
-    -- KOKE HUBと完全に同じアニメーション順序
     Services.TweenService:Create(Overlay,
         TweenInfo.new(0.3), {BackgroundTransparency = 0.5}):Play()
     task.wait(0.4)
@@ -1119,13 +1113,10 @@ local function PlayEntranceAnimation()
     Services.TweenService:Create(UI.Backdrop,
         TweenInfo.new(0.3, Enum.EasingStyle.Quad),
         {BackgroundTransparency = 0.1}):Play()
-
     task.wait(0.1)
-
     Services.TweenService:Create(UI.Container,
         TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
         {Size = UDim2.new(0, 420, 0, 600), BackgroundTransparency = 0}):Play()
-
     task.wait(0.5)
     UI.Input.TextBox:CaptureFocus()
 end
@@ -1135,16 +1126,14 @@ end
 -- ========================================
 
 local function Initialize()
-    -- まずKOKE HUBと同じローディング画面を表示
-    task.spawn(function()
-        PlayLoadingScreen()
-    end)
-
-    -- ローディング中にGUI構築
+    -- GUI構築（非表示状態で）
     local screenGui = CreateMainGUI()
     local backdrop = CreateBackdrop(screenGui)
+    UI.Backdrop.BackgroundTransparency = 1
     CreateParticleContainer(backdrop)
     local container = CreateContainer(screenGui)
+    UI.Container.Size = UDim2.new(0, 0, 0, 0)
+    UI.Container.BackgroundTransparency = 1
     CreateAnimatedBorder(container)
     CreateHeader(container)
     local content = CreateContent(container)
@@ -1160,8 +1149,8 @@ local function Initialize()
     ConnectEvents()
     StartAnimationLoops()
 
-    -- ローディング終わってから入場アニメーション
-    task.wait(3)
+    -- ローディング画面を表示してから入場アニメーション
+    PlayLoadingScreen()
     PlayEntranceAnimation()
 end
 
